@@ -20,3 +20,8 @@
     * [WIP - Classes, Modules and Exceptions](ecpptv2/metasploit-and-ruby/classes-modules-and-exceptions.md)
     * [Pentesters Prerequisites](ecpptv2/metasploit-and-ruby/pentesters-prerequisites.md)
     * [Input/Output](ecpptv2/metasploit-and-ruby/input-output.md)
+
+## Other Courses
+
+* [CEHv11](https://app.gitbook.com/s/29InV3wpbuqpBasJNvhr/)
+* [eJPT](https://app.gitbook.com/s/S4zPJUXHVKDt93XdLSr6/)
