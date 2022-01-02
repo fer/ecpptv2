@@ -240,6 +240,72 @@ They basically compromise the system (locally or remotely) and then provide acce
 
 ### Techniques Used by Malware - Study Guide
 
+The goal is to understand the threat level and be able to provide solutions accordingly. This sort of techniques are basically used by malware to hide themselves from either the anti-virus, the user or both.
+
+The most important methods are:
+
+* Streams
+* Hooking native APIs / SSDT
+* Hooking IRP
+
+#### Streams
+
+Streams are a feature of NTFS file system, they are not available on FAT file systems. Microsoft calls them Alternate Data Stream.
+
+The original data stream is file data itself (it is the data stream with no name), all other streams have a name. Alternate data streams can be used to store file meta data/or any other data.
+
+```
+echo this data is hidden in the stream >> sample.txt:hstream
+more < sample.txt:hstream
+```
+
+In the `CreateFile` API in Windows, just append `:stream_name` to the filename, where `stream_name` is the name of the stream.
+
+#### Hooking native APIs / SSDT (System Service Descriptor Table)
+
+Native API is API which resides in `ntdll.dll` and is basically used to communicate with kernel mode. This communication happens using SSDT table.
+
+For each entry in SSDT table, there is a suitable function in kernel model which completes the task specified by the API.
+
+SSDT table resides in the kernel and is exported as `KeServiceDescriptorTable`. The following are the services available for reading/writing files:
+
+* NtOpenFile
+* NtCreateFile
+* NtReadFile
+* NtWriteFile
+* NtQueryDirectoryFile (this is used to query contents of the directory)
+
+Microsoft keeps on adding new services on every OS release.
+
+Let us consider the case of a directory query. for that, we have to hook `NtQueryDirectoryFile`. Hooking means that we want our (malicious) function to be called instead of the actual function:
+
+1. Hook SSDT table entry corresponding to `NtQueryDirectoryFile.`
+2. Now, whenever the above function is called, your function will be called.
+3. Right after your function gets called, call original function and get its result (directory listing).
+4. If the result was successful, modify the results (hide the file/sub-directory you want to hide).
+5. Now pass back the results to the caller.
+6. You are hidden.
+
+This is a basic method. Nowadays almost all anti-virus/rootkit-detectors scan SSDT table for modifications (they can compare it with the copy stored in the kernel) and thus detection can be done.
+
+#### Hooking IRP
+
+Windows architecture in kernel mode introduced the concepts of IRPs (I/O request packets) to transmit piece of data from one component to another.
+
+The concept of IRPs is well explained in the Windows Driver Development Kit (it is available for free).
+
+Almost everything in the windows kernel use IRPs for example network interface (TCP/UDP, etc), file system, keyboard and mouse, and almost all existent drivers.
+
+
+
+
+
+
+
+
+
+
+
 ### How Malware Spreads - Study Guide
 
 ### Samples - Study Guide
