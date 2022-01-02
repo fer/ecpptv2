@@ -238,7 +238,7 @@ They are typically part of other software such as rootkit and are normally the e
 
 They basically compromise the system (locally or remotely) and then provide access to other software such as bot clients, spyware, key-loggers and so on.
 
-### Techniques Used by Malware - Study Guide
+### Techniques Used by Malware
 
 The goal is to understand the threat level and be able to provide solutions accordingly. This sort of techniques are basically used by malware to hide themselves from either the anti-virus, the user or both.
 
@@ -359,6 +359,96 @@ The difference between **IAT** and **EAT** hooking is since EATs exist only in D
 #### Anti-debugging methods
 
 There are several methods which are used by malware to increase the time required to analyze the code \*by security analysts). If such techniques are not already known by security analysts, then the time required increases drastically.
+
+**INT 2D trick** (for Windows OS)
+
+```
+push debugger_not_detected
+push fs:[0] // set SEH
+mov fs:[0],esp
+int 2dh // if debugger is attached, it will run normally else we have got an exception
+nop 
+pop fs:[0]
+add esp, 4
+...
+debugger_detected:
+...
+debugger_not_detected
+```
+
+What we do is:
+
+1. Set an exception handler
+2. Cause an exception with `INT 2dh`
+3. If a debugger is attached and does not pass the exception to us, we get to `debug_detect` because an exception ocurred for sure (we caused it).
+
+#### Anti-Virtual Machine
+
+Normal users always run the programs on a real system but security analyst analyzing malwares do not run the malware on a real system.
+
+They always run the code in virtualized OS.
+
+The tools are VMware, Virtual PC, Xen, bohs, qemu to name a few.
+
+These software let you install a virtual OS side-by-side your OS without disturbing your OS and will run just like any other normal program.&#x20;
+
+These techniques are basically used by security analysts, so malware authors have found out few bugs in these applications which can be used to detect whether the OS is virtualized or not.
+
+The techniques basically work on the SIDT instruction, which returns the IDT table address.&#x20;
+
+On real machines, it is on low memory less than 0xd0 while for virtualized OS (VMWare), it is higher than that. This abnormal behavior leads to detection whether the malware is running on a real or virtualized system or not.
+
+#### Obfuscation
+
+Code obfuscation techniques transform/change a program in order to make it more difficult to analyze while preserving functionality.
+
+It is used both by malware and legal software to protect itself.
+
+The difference is that malware use it to either prevent detection or make reverse engineering more difficult.
+
+Basically code obfuscation/data obfuscation makes programs more difficult to reverse engineer. One major drawback of existing obfuscating techniques is the lack of theoretical basis about their efficiency (several implementations which looked impressive had very basic weak points, leading to their total downfall).&#x20;
+
+Th malware obfuscates itself every time it infects a new machine making it harder for a detector to recognize it.
+
+Existing malware detectors (antivirus engines) are based on signature matching, thus they are based on purely syntactic information and can be fooled by such techniques.
+
+#### Packers
+
+Packers are software which compress the executable. They were initially designed to decrease the size of executable files. However, the malware authors recognized very quickly that decreasing file size will decrease number of patterns in the file, so less chances of detection by antivirus. Antivirus basically work by matching patterns (signatures). So this effectively increases the chances of malware to go undetected.&#x20;
+
+Some virus writers have gone to the limit of creating their own packers (suck as Yoda packer) while others use readily available packer such as UPX.&#x20;
+
+Some packers use anti-debugging tricks also.
+
+Packer facts:
+
+* Packers allow to compress/encrypt applications.
+* You cannot see the code of the application using a disassembler, you need to unpack it first.
+* Packers compress applications and add a small loader to the file.
+* The loader will decompress the binary in memory, resolve imports, and call the Original Entry Point (OEP).
+
+#### Polymorphism
+
+Polymorphic code aims at performing a given action (or algorithm) through code that mutates and changes every time the action has to be taken.&#x20;
+
+The mutation makes them very difficult to detect.
+
+There have been only a few polymorphic viruses and they still are not detected 100% by most of the anti-viruses.&#x20;
+
+All polymorphic viruses have a constant encoding and variable decryptor. So a virus using a different XOR key to encrypt its variant also falls into polymorphic category.
+
+#### Metamorphism
+
+IT can be best defined as polymorphism with polymorphism applied to the decryptor/header as well.&#x20;
+
+There are numerous ways to implement metamorphism/polymorphism (both are similar with some minor differences). Some of which are documented below:
+
+* **Garbage insertion**: garbage data/instructions are inserted into the code, for example NOP instructions (0x90) are inserted.
+* **Register exchange**: the registers are exchanged in all the instructions.&#x20;
+* **Permutation of code blocks**: code blocks are randomly shuffled and then fixed up, so that the execution logic is still the same.
+* **Insertion of jump instructions**: some malware mutate by inserting jumps after instructions (the instruction is also relocated), so that the code flow does not change.
+* **Instruction substitution**: one instruction (or set of instructions) are replaced by 1 or more different instructions which are functionally equivalent to the replaced set.
+* **Code integration with host**: malware modifies the target executable (which is being infected) by spraying its code in regions of the EXE. `Zmist` virus used this technique very effectively. To hide more changes such as changes in the file size, the malware might compress the original code to survive.
 
 
 
