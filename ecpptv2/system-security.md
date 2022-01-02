@@ -296,9 +296,69 @@ The concept of IRPs is well explained in the Windows Driver Development Kit (it 
 
 Almost everything in the windows kernel use IRPs for example network interface (TCP/UDP, etc), file system, keyboard and mouse, and almost all existent drivers.
 
+```
+DriverObject->MajorFunction[IRP_MJ_CREATE] = DiskPerfCreate;
+DriverObject->MajorFunction[IRP_MJ_READ] = DiskPerfReadWrite;
+DriverObject->MajorFunction[IRP_MJ_WRITE] = DiskPerfReadWrite; 
+DriverObject->MajorFunction[IRP_MJ_SYSTEM_CONTROL] = DiskPerfWmi;
+DriverObject->MajorFunction[IRP_MJ_SHUTDOWN] = DiskPerfShutdownFlush;
+DriverObject->MajorFunction[IRP_MJ_FLUSH_BUFFERS] = DiskPerfShutdownFlush;
+DriverObject->MajorFunction[IRP_MJ_PNP] = DiskPerfDispatchPnp;
+DriverObject->MajorFunction[IRP_MJ_POWER] = DiskPerfDispatchPower;
+```
 
+There are basically 2 ways to play with IRPs:
 
+* **Become a filter driver**: register with the OS as a filter driver or an attached device.
+* **Hooking the function pointer**: the array is just a table with function pointers and can be easily modified.
 
+Code snippet showing function pointer hooking:
+
+```
+old_power_irp = DriverObject->MajorFunction[IRP_MJ_POWER];
+DriverObject->MajorFunction[IRP_MJ_POWER] = my_new_irp;
+```
+
+Function pointer is one of the easiest methods to hook functions. The basic IRP design is so that after an IRP has been created, it's passed to all the devices registered at lower levels. The design has pre-processing mode and post-processing mode.
+
+Pre-processing is done when an IRP arrives, and post-processing is done when the IRP has been processed by all the levels below current level.
+
+Each device object has its own function table. Hooking the function pointers of such objects is called DKOM (Direct Kernel Object Manipulation). All file-systems, network layers, devices like keyboard, mouse, etc., have such objects.
+
+For example:
+
+* `\device\ip`
+* `\device\tcp`
+* `\Device\KeyboardClass0`
+* `\FileSystem\ntfs`
+
+Filter drivers are basically used by anti-viruses to get control whenever a new file is written.&#x20;
+
+#### Hiding a process
+
+Hiding a process requires a more difficult approach.&#x20;
+
+It requires a combination of different techniques.
+
+E.g., first thing you have to do is to hook `NtOpenProcess` native API (probably using SSDT table hooks).&#x20;
+
+Something else we could do is to hide the process from `EPROCESS` list. This list is maintained by the OS for all the active processes. The easiest thing to do is to unlink the structure relative to our process from the list.&#x20;
+
+If the driver is loaded, you will also have to unlink it from the `PsLoadedModuleList`.&#x20;
+
+API hooking is essentially the act of intercepting an API function call and modifying its functionality somehow, either by redirecting it to a function of our choice, stopping the function from being called or logging the request, the possibilities are infinite.
+
+There can be different types of hooking such as:
+
+* **IAT Hooking**: Import Address Table. It is basically used to resolve runtime dependencies (when you use `MessageBoxA` API in windows, your compiler automatically links to `user32.dll`). IAT hooking involves modifying the IAT table of the executable and replace the function with our own copy.
+* **EAT Hooking**: Export Address Table. This table is maintained in DLLs (dynamic link library). These files just contain support functions for other executable files.
+* **Inline Hooking**: most difficult due to the way it works. In this form of hooking, we modify the first few bytes of the target function code and replace them with our code which tells the IP (instruction pointer) to execute code somewhere else in memory. Whenever the function gets executed, we will get control of execution; after doing our job, we have to call the original function so we have to fix up the modified function. This is normally by executing a number of instructions which were replaced and then resuming execution in non-modified original function code.
+
+The difference between **IAT** and **EAT** hooking is since EATs exist only in DLL files (under normal settings) most of the times EAT hooking is utilized only on DLLs while IAT hooking can be done on both EXEs and DLLs.
+
+#### Anti-debugging methods
+
+There are several methods which are used by malware to increase the time required to analyze the code \*by security analysts). If such techniques are not already known by security analysts, then the time required increases drastically.
 
 
 
